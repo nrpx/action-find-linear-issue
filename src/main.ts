@@ -63,7 +63,7 @@ const main = async () => {
     }
 
     setFailed(
-      `Failed to find Linear issue identifier in PR branch, title or body.`
+      `Failed to find Linear issue identifier in PR branch, title, or body.`
     );
     return;
   } catch (error) {
