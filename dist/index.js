@@ -97,7 +97,7 @@ const main = async () => {
         for (const team of teams) {
             const regexString = `${team.key}-(?<issueNumber>\d+)`;
             const regex = new RegExp(regexString, "gim");
-            (0, core_1.debug)(`Checking PR for indentifier "${regexString}"`);
+            (0, core_1.debug)(`Checking PR for indentifier "${regexString}" in "${prBranch + " " + prTitle + " " + prBody}"`);
             const check = regex.exec(prBranch + " " + prTitle + " " + prBody);
             console.log(check);
             // TODO: Iterate over multiple matches and not just first match
