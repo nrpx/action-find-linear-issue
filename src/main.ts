@@ -36,11 +36,14 @@ const main = async () => {
     }
 
     for (const team of teams) {
-      const regex = new RegExp(`${team.key}-(?<issueNumber>\d+)`, "gim");
-      debug(`Checking PR for indentifier ${team.key}-XYZ`);
-      const check = regex.exec(prBranch + " " + prTitle + " " + prBody);
       // TODO: Iterate over multiple matches and not just first match
+      const regexString = `${team.key}-(?<issueNumber>\\d+)`;
+      const regex = new RegExp(regexString, "gim");
+      const haystack = prBranch + " " + prTitle + " " + prBody;
+      debug(`Checking PR for indentifier "${regexString}" in "${haystack}"`);
+      const check = regex.exec(haystack);
       const issueNumber = check?.groups?.issueNumber;
+
       if (issueNumber) {
         debug(`Found issue number: ${issueNumber}`);
         const issue = await getIssueByTeamAndNumber(
@@ -63,7 +66,7 @@ const main = async () => {
     }
 
     setFailed(
-      `Failed to find Linear issue identifier in PR branch, title or body.`
+      `Failed to find Linear issue identifier in PR branch, title, or body.`
     );
     return;
   } catch (error) {
