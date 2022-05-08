@@ -95,12 +95,12 @@ const main = async () => {
             return;
         }
         for (const team of teams) {
+            // TODO: Iterate over multiple matches and not just first match
             const regexString = `${team.key}-(?<issueNumber>\\d+)`;
             const regex = new RegExp(regexString, "gim");
-            (0, core_1.debug)(`Checking PR for indentifier "${regexString}" in "${prBranch + " " + prTitle + " " + prBody}"`);
-            const check = regex.exec(prBranch + " " + prTitle + " " + prBody);
-            console.log(check);
-            // TODO: Iterate over multiple matches and not just first match
+            const haystack = prBranch + " " + prTitle + " " + prBody;
+            (0, core_1.debug)(`Checking PR for indentifier "${regexString}" in "${haystack}"`);
+            const check = regex.exec(haystack);
             const issueNumber = check?.groups?.issueNumber;
             if (issueNumber) {
                 (0, core_1.debug)(`Found issue number: ${issueNumber}`);
