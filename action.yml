@@ -2,15 +2,15 @@ name: "Find Linear Issue"
 description: "Finds a Linear Issue from your pull request's branch, title, or description"
 inputs:
   linear-api-key:
-    description: "Linear API key generated from https://linear.app/settings/api"
+    description: "Linear API key generated from https://linear.app/settings/api . (e.g. `lin_api_*)`"
     required: true
 outputs:
   linear-issue-id:
     description: "The unique identifier of the Linear issue. (UUID)"
   linear-issue-identifier:
-    description: "The Linear issue's human readable identifier (e.g. ENG-123)."
+    description: "The Linear issue's human readable identifier (e.g. `ENG-123`)."
   linear-issue-number:
-    description: "The Linear issue's number. (e.g. the 123 of ENG-123)"
+    description: "The Linear issue's number. (e.g. the `123` of `ENG-123`)"
   linear-issue-title:
     description: "The Linear issue's title."
   linear-issue-description:
