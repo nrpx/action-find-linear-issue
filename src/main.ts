@@ -36,7 +36,7 @@ const main = async () => {
     }
 
     for (const team of teams) {
-      const regexString = `${team.key}-(?<issueNumber>\d+)`;
+      const regexString = `${team.key}-(?<issueNumber>\\d+)`;
       const regex = new RegExp(regexString, "gim");
       debug(
         `Checking PR for indentifier "${regexString}" in "${
