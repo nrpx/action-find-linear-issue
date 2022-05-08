@@ -98,6 +98,7 @@ const main = async () => {
             const regex = new RegExp(`${team.key}-(?<issueNumber>\d+)`, "gim");
             (0, core_1.debug)(`Checking PR for indentifier ${team.key}-XYZ`);
             const check = regex.exec(prBranch + " " + prTitle + " " + prBody);
+            console.log(check);
             // TODO: Iterate over multiple matches and not just first match
             const issueNumber = check?.groups?.issueNumber;
             if (issueNumber) {
@@ -116,7 +117,7 @@ const main = async () => {
                 }
             }
         }
-        (0, core_1.setFailed)(`Failed to find Linear issue identifier in PR branch, title or body.`);
+        (0, core_1.setFailed)(`Failed to find Linear issue identifier in PR branch, title, or body.`);
         return;
     }
     catch (error) {

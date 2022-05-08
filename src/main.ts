@@ -39,6 +39,7 @@ const main = async () => {
       const regex = new RegExp(`${team.key}-(?<issueNumber>\d+)`, "gim");
       debug(`Checking PR for indentifier ${team.key}-XYZ`);
       const check = regex.exec(prBranch + " " + prTitle + " " + prBody);
+      console.log(check);
       // TODO: Iterate over multiple matches and not just first match
       const issueNumber = check?.groups?.issueNumber;
       if (issueNumber) {
