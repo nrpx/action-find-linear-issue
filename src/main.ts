@@ -36,15 +36,15 @@ const main = async () => {
     }
 
     for (const team of teams) {
-      // TODO: Iterate over multiple matches and not just first match
-      const regexString = `${team.key}-(?<issueNumber>\\d+)`;
+      const regexString = `${team.key}-(\\d+)`;
       const regex = new RegExp(regexString, "gim");
       const haystack = prBranch + " " + prTitle + " " + prBody;
       debug(`Checking PR for indentifier "${regexString}" in "${haystack}"`);
-      const check = regex.exec(haystack);
-      const issueNumber = check?.groups?.issueNumber;
+      const outputMultiple = getInput("output-multiple");
+      const matches = haystack.match(regex);
 
-      if (issueNumber) {
+      if (!outputMultiple && matches?.length) {
+        const issueNumber = matches[0].split("-")[1];
         debug(`Found issue number: ${issueNumber}`);
         const issue = await getIssueByTeamAndNumber(
           linearClient,
@@ -60,6 +60,22 @@ const main = async () => {
           setOutput("linear-issue-url", issue.url);
           setOutput("linear-issue-title", issue.title);
           setOutput("linear-issue-description", issue.description);
+        }
+      }
+
+      if (outputMultiple && matches?.length) {
+        const issueNumbers = matches.map((match) => match.split("-")[1]);
+        debug(`Found issue numbers: ${issueNumbers.toString()}`);
+        const issues = await Promise.all(
+          issueNumbers.map((issueNumber) =>
+            getIssueByTeamAndNumber(linearClient, team, Number(issueNumber))
+          )
+        );
+
+        if (issues.length) {
+          setOutput("linear-team-id", team.id);
+          setOutput("linear-team-key", team.key);
+          setOutput("linear-issues", JSON.stringify(issues));
           return;
         }
       }

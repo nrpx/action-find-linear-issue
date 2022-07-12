@@ -5,6 +5,8 @@ inputs:
     description: "Linear API key generated from https://linear.app/settings/api . (e.g. `lin_api_*)`"
     required: true
 outputs:
+  multiple:
+    description: "Find multiple issues and output a json array of results"
   linear-issue-id:
     description: "The unique identifier of the Linear issue. (UUID)"
   linear-issue-identifier:

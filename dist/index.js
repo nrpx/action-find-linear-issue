@@ -95,14 +95,14 @@ const main = async () => {
             return;
         }
         for (const team of teams) {
-            // TODO: Iterate over multiple matches and not just first match
-            const regexString = `${team.key}-(?<issueNumber>\\d+)`;
+            const regexString = `${team.key}-(\\d+)`;
             const regex = new RegExp(regexString, "gim");
             const haystack = prBranch + " " + prTitle + " " + prBody;
             (0, core_1.debug)(`Checking PR for indentifier "${regexString}" in "${haystack}"`);
-            const check = regex.exec(haystack);
-            const issueNumber = check?.groups?.issueNumber;
-            if (issueNumber) {
+            const outputMultiple = (0, core_1.getInput)("output-multiple");
+            const matches = haystack.match(regex);
+            if (!outputMultiple && matches?.length) {
+                const issueNumber = matches[0].split("-")[1];
                 (0, core_1.debug)(`Found issue number: ${issueNumber}`);
                 const issue = await (0, getIssueByTeamAndNumber_1.default)(linearClient, team, Number(issueNumber));
                 if (issue) {
@@ -114,6 +114,16 @@ const main = async () => {
                     (0, core_1.setOutput)("linear-issue-url", issue.url);
                     (0, core_1.setOutput)("linear-issue-title", issue.title);
                     (0, core_1.setOutput)("linear-issue-description", issue.description);
+                }
+            }
+            if (outputMultiple && matches?.length) {
+                const issueNumbers = matches.map((match) => match.split("-")[1]);
+                (0, core_1.debug)(`Found issue numbers: ${issueNumbers.toString()}`);
+                const issues = await Promise.all(issueNumbers.map((issueNumber) => (0, getIssueByTeamAndNumber_1.default)(linearClient, team, Number(issueNumber))));
+                if (issues.length) {
+                    (0, core_1.setOutput)("linear-team-id", team.id);
+                    (0, core_1.setOutput)("linear-team-key", team.key);
+                    (0, core_1.setOutput)("linear-issues", JSON.stringify(issues));
                     return;
                 }
             }
