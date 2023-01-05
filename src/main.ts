@@ -60,6 +60,7 @@ const main = async () => {
           setOutput("linear-issue-url", issue.url);
           setOutput("linear-issue-title", issue.title);
           setOutput("linear-issue-description", issue.description);
+          return;
         }
       }
 
