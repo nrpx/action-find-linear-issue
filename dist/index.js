@@ -114,6 +114,7 @@ const main = async () => {
                     (0, core_1.setOutput)("linear-issue-url", issue.url);
                     (0, core_1.setOutput)("linear-issue-title", issue.title);
                     (0, core_1.setOutput)("linear-issue-description", issue.description);
+                    return;
                 }
             }
             if (outputMultiple && matches?.length) {
