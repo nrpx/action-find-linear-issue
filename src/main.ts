@@ -2,82 +2,91 @@ import { debug, setFailed, getInput, setOutput } from "@actions/core";
 import { LinearClient } from "@linear/sdk";
 import { context } from "@actions/github";
 import getTeams from "./getTeams";
-import getIssueByTeamAndNumber from "./getIssueByTeamAndNumber";
+import getIssues, { IssueNumber } from "./getIssues";
 
 const main = async () => {
-  try {
-    const prTitle: string = context?.payload?.pull_request?.title;
-    debug(`PR Title: ${prTitle}`);
-    if (!prTitle) {
-      setFailed(`Could not load PR title`);
-      return;
-    }
+  const boolCheck = (
+    arg: string | undefined,
+    defValue: boolean = false
+  ): boolean => {
+    return arg === undefined ? defValue : arg === "true";
+  };
 
-    const prBranch: string = context.payload.pull_request?.head.ref;
+  const matchToIssueNumber = (issueStr: string): IssueNumber => {
+    const [teamKey, issueNumber] = issueStr.split("-");
+    return { teamKey, issueNumber: Number(issueNumber) };
+  };
+
+  try {
+    const linearApiKeyInput = getInput("linear-api-key", { required: true });
+    const outputMultipleInput: boolean = boolCheck(getInput("output-multiple"));
+    const includeTitleInput: boolean = boolCheck(getInput("include-title"));
+    const includeDescriptionInput: boolean = boolCheck(
+      getInput("include-description")
+    );
+    const includeBranchNameInput: boolean = boolCheck(
+      getInput("include-branch-name"),
+      true
+    );
+    const withTeamInput: boolean = boolCheck(getInput("with-team"), true);
+    const withLabelsInput: boolean = boolCheck(getInput("with-labels"), true);
+
+    const prBranch: string | undefined = context.payload.pull_request?.head.ref;
     debug(`PR Branch: ${prBranch}`);
-    if (!prBranch) {
+    if (!prBranch && includeBranchNameInput) {
       setFailed(`Could not load PR branch`);
       return;
     }
 
-    const prBody = context?.payload?.pull_request?.body;
+    const prTitle: string | undefined = context.payload.pull_request?.title;
+    debug(`PR Title: ${prTitle}`);
+    if (!prTitle && includeTitleInput) {
+      setFailed(`Could not load PR title`);
+      return;
+    }
+
+    const prBody: string | undefined = context.payload.pull_request?.body;
     debug(`PR Body: ${prBody}`);
-    if (prBranch === undefined) {
+    if (prBody === undefined && includeDescriptionInput) {
       setFailed(`Could not load PR body`);
       return;
     }
 
-    const apiKey = getInput("linear-api-key", { required: true });
-    const linearClient = new LinearClient({ apiKey });
+    const linearClient = new LinearClient({ apiKey: linearApiKeyInput });
     const teams = await getTeams(linearClient);
-    if (teams.length === 0) {
+    if (!teams.length) {
       setFailed(`No teams found in Linear workspace`);
       return;
     }
 
-    for (const team of teams) {
-      const regexString = `${team.key}-(\\d+)`;
-      const regex = new RegExp(regexString, "gim");
-      const haystack = prBranch + " " + prTitle + " " + prBody;
-      debug(`Checking PR for indentifier "${regexString}" in "${haystack}"`);
-      const outputMultiple = getInput("output-multiple");
-      const matches = haystack.match(regex);
+    const teamKeys = teams.map((team) => team.key);
+    const regexStr = `(?<!A-Za-z)(${teamKeys.join("|")})-(\\d+)`;
+    const regExp = new RegExp(regexStr, "gim");
+    const haystack = [prBranch, prTitle, prBody]
+      .filter((str) => str !== undefined)
+      .join(" ");
+    debug(`Checking PR for identifier "${regexStr}" in "${haystack}"`);
 
-      if (!outputMultiple && matches?.length) {
-        const issueNumber = matches[0].split("-")[1];
-        debug(`Found issue number: ${issueNumber}`);
-        const issue = await getIssueByTeamAndNumber(
-          linearClient,
-          team,
-          Number(issueNumber)
-        );
-        if (issue) {
-          setOutput("linear-team-id", team.id);
-          setOutput("linear-team-key", team.key);
-          setOutput("linear-issue-id", issue.id);
-          setOutput("linear-issue-number", issue.number);
-          setOutput("linear-issue-identifier", issue.identifier);
-          setOutput("linear-issue-url", issue.url);
-          setOutput("linear-issue-title", issue.title);
-          setOutput("linear-issue-description", issue.description);
-          return;
-        }
-      }
+    const matches = haystack.match(regExp);
+    if (matches?.length) {
+      const issueNumbers = outputMultipleInput
+        ? matches.map(matchToIssueNumber)
+        : [matchToIssueNumber(matches[0])];
+      const issues = await getIssues(linearClient, ...issueNumbers);
 
-      if (outputMultiple && matches?.length) {
-        const issueNumbers = matches.map((match) => match.split("-")[1]);
-        debug(`Found issue numbers: ${issueNumbers.toString()}`);
-        const issues = await Promise.all(
-          issueNumbers.map((issueNumber) =>
-            getIssueByTeamAndNumber(linearClient, team, Number(issueNumber))
-          )
-        );
+      if (issues.length) {
+        const foundIssues = issues.map(async (issue) => {
+          return {
+            ...issue,
+            team: withTeamInput ? await issue.team : null,
+            labels: withLabelsInput ? (await issue.labels()).nodes : null,
+          };
+        });
 
-        if (issues.length) {
-          setOutput("linear-team-id", team.id);
-          setOutput("linear-team-key", team.key);
-          setOutput("linear-issues", JSON.stringify(issues));
-          return;
+        if (outputMultipleInput) {
+          setOutput("linear-issues", JSON.stringify(foundIssues));
+        } else {
+          setOutput("linear-issue", JSON.stringify(foundIssues[0]));
         }
       }
     }

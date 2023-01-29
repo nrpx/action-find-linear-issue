@@ -1,146 +1,6 @@
 /******/ (() => { // webpackBootstrap
 /******/ 	var __webpack_modules__ = ({
 
-/***/ 729:
-/***/ ((__unused_webpack_module, exports) => {
-
-"use strict";
-
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-/**
- * Gets an issue using the provided team and issueNumber
- * @param linearClient LinearClient instance
- * @param team Linear team object
- * @param issueNumber Issue number to search for the "123" in "ENG-123"
- * @returns The issue if it exists
- */
-const getIssueByTeamAndNumber = async (linearClient, team, issueNumber) => {
-    const issues = await linearClient.issues({
-        filter: {
-            team: {
-                id: {
-                    eq: team.id,
-                },
-            },
-            number: {
-                eq: issueNumber,
-            },
-        },
-    });
-    if (issues.nodes.length === 0) {
-        console.log(`Failed to find issue ${team.key}-${issueNumber}`);
-        return null;
-    }
-    return issues.nodes[0];
-};
-exports["default"] = getIssueByTeamAndNumber;
-
-
-/***/ }),
-
-/***/ 9236:
-/***/ ((__unused_webpack_module, exports) => {
-
-"use strict";
-
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-const getTeams = async (linearClient) => {
-    const teams = await linearClient.teams();
-    return teams.nodes;
-};
-exports["default"] = getTeams;
-
-
-/***/ }),
-
-/***/ 3109:
-/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
-
-"use strict";
-
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-const core_1 = __nccwpck_require__(2186);
-const sdk_1 = __nccwpck_require__(8851);
-const github_1 = __nccwpck_require__(5438);
-const getTeams_1 = __importDefault(__nccwpck_require__(9236));
-const getIssueByTeamAndNumber_1 = __importDefault(__nccwpck_require__(729));
-const main = async () => {
-    try {
-        const prTitle = github_1.context?.payload?.pull_request?.title;
-        (0, core_1.debug)(`PR Title: ${prTitle}`);
-        if (!prTitle) {
-            (0, core_1.setFailed)(`Could not load PR title`);
-            return;
-        }
-        const prBranch = github_1.context.payload.pull_request?.head.ref;
-        (0, core_1.debug)(`PR Branch: ${prBranch}`);
-        if (!prBranch) {
-            (0, core_1.setFailed)(`Could not load PR branch`);
-            return;
-        }
-        const prBody = github_1.context?.payload?.pull_request?.body;
-        (0, core_1.debug)(`PR Body: ${prBody}`);
-        if (prBranch === undefined) {
-            (0, core_1.setFailed)(`Could not load PR body`);
-            return;
-        }
-        const apiKey = (0, core_1.getInput)("linear-api-key", { required: true });
-        const linearClient = new sdk_1.LinearClient({ apiKey });
-        const teams = await (0, getTeams_1.default)(linearClient);
-        if (teams.length === 0) {
-            (0, core_1.setFailed)(`No teams found in Linear workspace`);
-            return;
-        }
-        for (const team of teams) {
-            const regexString = `${team.key}-(\\d+)`;
-            const regex = new RegExp(regexString, "gim");
-            const haystack = prBranch + " " + prTitle + " " + prBody;
-            (0, core_1.debug)(`Checking PR for indentifier "${regexString}" in "${haystack}"`);
-            const outputMultiple = (0, core_1.getInput)("output-multiple");
-            const matches = haystack.match(regex);
-            if (!outputMultiple && matches?.length) {
-                const issueNumber = matches[0].split("-")[1];
-                (0, core_1.debug)(`Found issue number: ${issueNumber}`);
-                const issue = await (0, getIssueByTeamAndNumber_1.default)(linearClient, team, Number(issueNumber));
-                if (issue) {
-                    (0, core_1.setOutput)("linear-team-id", team.id);
-                    (0, core_1.setOutput)("linear-team-key", team.key);
-                    (0, core_1.setOutput)("linear-issue-id", issue.id);
-                    (0, core_1.setOutput)("linear-issue-number", issue.number);
-                    (0, core_1.setOutput)("linear-issue-identifier", issue.identifier);
-                    (0, core_1.setOutput)("linear-issue-url", issue.url);
-                    (0, core_1.setOutput)("linear-issue-title", issue.title);
-                    (0, core_1.setOutput)("linear-issue-description", issue.description);
-                    return;
-                }
-            }
-            if (outputMultiple && matches?.length) {
-                const issueNumbers = matches.map((match) => match.split("-")[1]);
-                (0, core_1.debug)(`Found issue numbers: ${issueNumbers.toString()}`);
-                const issues = await Promise.all(issueNumbers.map((issueNumber) => (0, getIssueByTeamAndNumber_1.default)(linearClient, team, Number(issueNumber))));
-                if (issues.length) {
-                    (0, core_1.setOutput)("linear-team-id", team.id);
-                    (0, core_1.setOutput)("linear-team-key", team.key);
-                    (0, core_1.setOutput)("linear-issues", JSON.stringify(issues));
-                    return;
-                }
-            }
-        }
-        (0, core_1.setFailed)(`Failed to find Linear issue identifier in PR branch, title, or body.`);
-        return;
-    }
-    catch (error) {
-        (0, core_1.setFailed)(`${error?.message ?? error}`);
-    }
-};
-main();
-
-
-/***/ }),
-
 /***/ 7351:
 /***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
 
@@ -8765,6 +8625,146 @@ function wrappy (fn, cb) {
 
 /***/ }),
 
+/***/ 1791:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+/**
+ * Gets an issue using the provided team and issueNumber
+ * @param linearClient LinearClient instance
+ * @param issueNumbers Issue numbers with team key to search
+ * @returns The issues if they exists
+ */
+const getIssues = async (linearClient, ...issueNumbers) => {
+    const issues = await linearClient.issues({
+        filter: {
+            or: issueNumbers.map((issueNumber) => {
+                return {
+                    team: { key: { eq: issueNumber.teamKey } },
+                    number: { eq: issueNumber.issueNumber },
+                };
+            }),
+        },
+    });
+    if (!issues.nodes.length) {
+        console.log(`Failed to find any issues`);
+    }
+    return issues.nodes;
+};
+exports["default"] = getIssues;
+
+
+/***/ }),
+
+/***/ 3957:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+const getTeams = async (linearClient) => (await linearClient.teams()).nodes;
+exports["default"] = getTeams;
+
+
+/***/ }),
+
+/***/ 399:
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
+
+"use strict";
+
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+const core_1 = __nccwpck_require__(2186);
+const sdk_1 = __nccwpck_require__(8851);
+const github_1 = __nccwpck_require__(5438);
+const getTeams_1 = __importDefault(__nccwpck_require__(3957));
+const getIssues_1 = __importDefault(__nccwpck_require__(1791));
+const main = async () => {
+    const boolCheck = (arg, defValue = false) => {
+        return arg === undefined ? defValue : arg === "true";
+    };
+    const matchToIssueNumber = (issueStr) => {
+        const [teamKey, issueNumber] = issueStr.split("-");
+        return { teamKey, issueNumber: Number(issueNumber) };
+    };
+    try {
+        const linearApiKeyInput = (0, core_1.getInput)("linear-api-key", { required: true });
+        const outputMultipleInput = boolCheck((0, core_1.getInput)("output-multiple"));
+        const includeTitleInput = boolCheck((0, core_1.getInput)("include-title"));
+        const includeDescriptionInput = boolCheck((0, core_1.getInput)("include-description"));
+        const includeBranchNameInput = boolCheck((0, core_1.getInput)("include-branch-name"), true);
+        const withTeamInput = boolCheck((0, core_1.getInput)("with-team"), true);
+        const withLabelsInput = boolCheck((0, core_1.getInput)("with-labels"), true);
+        const prBranch = github_1.context.payload.pull_request?.head.ref;
+        (0, core_1.debug)(`PR Branch: ${prBranch}`);
+        if (!prBranch && includeBranchNameInput) {
+            (0, core_1.setFailed)(`Could not load PR branch`);
+            return;
+        }
+        const prTitle = github_1.context.payload.pull_request?.title;
+        (0, core_1.debug)(`PR Title: ${prTitle}`);
+        if (!prTitle && includeTitleInput) {
+            (0, core_1.setFailed)(`Could not load PR title`);
+            return;
+        }
+        const prBody = github_1.context.payload.pull_request?.body;
+        (0, core_1.debug)(`PR Body: ${prBody}`);
+        if (prBody === undefined && includeDescriptionInput) {
+            (0, core_1.setFailed)(`Could not load PR body`);
+            return;
+        }
+        const linearClient = new sdk_1.LinearClient({ apiKey: linearApiKeyInput });
+        const teams = await (0, getTeams_1.default)(linearClient);
+        if (!teams.length) {
+            (0, core_1.setFailed)(`No teams found in Linear workspace`);
+            return;
+        }
+        const teamKeys = teams.map((team) => team.key);
+        const regexStr = `(?<!A-Za-z)(${teamKeys.join("|")})-(\\d+)`;
+        const regExp = new RegExp(regexStr, "gim");
+        const haystack = [prBranch, prTitle, prBody]
+            .filter((str) => str !== undefined)
+            .join(" ");
+        (0, core_1.debug)(`Checking PR for identifier "${regexStr}" in "${haystack}"`);
+        const matches = haystack.match(regExp);
+        if (matches?.length) {
+            const issueNumbers = outputMultipleInput
+                ? matches.map(matchToIssueNumber)
+                : [matchToIssueNumber(matches[0])];
+            const issues = await (0, getIssues_1.default)(linearClient, ...issueNumbers);
+            if (issues.length) {
+                const foundIssues = issues.map(async (issue) => {
+                    return {
+                        ...issue,
+                        team: withTeamInput ? await issue.team : null,
+                        labels: withLabelsInput ? (await issue.labels()).nodes : null,
+                    };
+                });
+                if (outputMultipleInput) {
+                    (0, core_1.setOutput)("linear-issues", JSON.stringify(foundIssues));
+                }
+                else {
+                    (0, core_1.setOutput)("linear-issue", JSON.stringify(foundIssues[0]));
+                }
+            }
+        }
+        (0, core_1.setFailed)(`Failed to find Linear issue identifier in PR branch, title, or body.`);
+        return;
+    }
+    catch (error) {
+        (0, core_1.setFailed)(`${error?.message ?? error}`);
+    }
+};
+main();
+
+
+/***/ }),
+
 /***/ 2877:
 /***/ ((module) => {
 
@@ -8935,7 +8935,7 @@ module.exports = JSON.parse('[[[0,44],"disallowed_STD3_valid"],[[45,46],"valid"]
 /******/ 	// startup
 /******/ 	// Load entry module and return exports
 /******/ 	// This entry module is referenced by other modules so it can't be inlined
-/******/ 	var __webpack_exports__ = __nccwpck_require__(3109);
+/******/ 	var __webpack_exports__ = __nccwpck_require__(399);
 /******/ 	module.exports = __webpack_exports__;
 /******/ 	
 /******/ })()

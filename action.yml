@@ -5,31 +5,33 @@ inputs:
     description: "Linear API key generated from https://linear.app/settings/api . (e.g. `lin_api_*)`"
     required: true
   output-multiple:
-    description: "Find multiple issues and output a json array of results"
+    description: "Find multiple issues and output a JSON array of results (default `false`)"
     required: false
-    
+  include-title:
+    description: "Taking the PR title into account to find issues (default `false`)"
+    required: false
+  include-description:
+    description: "Taking the PR description into account to find issues (default `false`)"
+    required: false
+  include-branch-name:
+    description: "Taking the PR branch name into account to find issues (default `true`)"
+    required: false
+  with-team:
+    description: "Include `team` node into each resulted `issue` (default `true`)"
+    required: false
+  with-labels:
+    description: "Include `labels` nodes into each resulted `issue` (default `true`)"
+    required: false
+
 outputs:
   linear-issues:
-    description: "Find multiple issues and output a json array of results"
-  linear-issue-id:
-    description: "The unique identifier of the Linear issue. (UUID)"
-  linear-issue-identifier:
-    description: "The Linear issue's human readable identifier (e.g. `ENG-123`)."
-  linear-issue-number:
-    description: "The Linear issue's number. (e.g. the `123` of `ENG-123`)"
-  linear-issue-title:
-    description: "The Linear issue's title."
-  linear-issue-description:
-    description: "The Linear issue's description."
-  linear-issue-url:
-    description: "The Linear issue's URL. (e.g. https://...)"
-  linear-team-id:
-    description: "The Linear teams unique identifier. (UUID)"
-  linear-team-key:
-    description: "The Linear teams key/prefix (e.g. ENG)"
+    description: "JSON array of resulted issues when `output-multiple` is used"
+  linear-issue:
+    description: "Found Linear issue in JSON form"
+
 runs:
   using: "node16"
   main: "dist/index.js"
 branding:
-  icon: "checklist"
-  color: "gray-dark"
+  icon: "git-pull-request"
+  color: "blue"
