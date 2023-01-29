@@ -62,13 +62,19 @@ const main = async () => {
     const teamKeys = teams.map((team) => team.key);
     const regexStr = `(?<!A-Za-z)(${teamKeys.join("|")})-(\\d+)`;
     const regExp = new RegExp(regexStr, "gim");
-    const haystack = [prBranch, prTitle, prBody]
+    const haystack = [
+      includeBranchNameInput ? prBranch : undefined,
+      includeTitleInput ? prTitle : undefined,
+      includeDescriptionInput ? prBody : undefined,
+    ]
       .filter((str) => str !== undefined)
       .join(" ");
     debug(`Checking PR for identifier "${regexStr}" in "${haystack}"`);
 
     const matches = haystack.match(regExp);
     if (matches?.length) {
+      debug(`Found numbers: ${matches.join(", ")}`);
+
       const issueNumbers = outputMultipleInput
         ? matches.map(matchToIssueNumber)
         : [matchToIssueNumber(matches[0])];
