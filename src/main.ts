@@ -5,11 +5,8 @@ import getTeams from "./getTeams";
 import getIssues, { IssueNumber } from "./getIssues";
 
 const main = async () => {
-  const boolCheck = (
-    arg: string | undefined,
-    defValue: boolean = false
-  ): boolean => {
-    return arg === undefined ? defValue : arg === "true";
+  const boolCheck = (arg: string, defValue: boolean = false): boolean => {
+    return ["true", "false"].includes(arg) ? arg === "true" : defValue;
   };
 
   const matchToIssueNumber = (issueStr: string): IssueNumber => {

@@ -9682,7 +9682,7 @@ const getTeams_1 = __importDefault(__nccwpck_require__(3957));
 const getIssues_1 = __importDefault(__nccwpck_require__(1791));
 const main = async () => {
     const boolCheck = (arg, defValue = false) => {
-        return arg === undefined ? defValue : arg === "true";
+        return ["true", "false"].includes(arg) ? arg === "true" : defValue;
     };
     const matchToIssueNumber = (issueStr) => {
         const [teamKey, issueNumber] = issueStr.split("-");
