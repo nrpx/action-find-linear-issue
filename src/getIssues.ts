@@ -1,4 +1,5 @@
 import { Issue, LinearClient, Team } from "@linear/sdk";
+import { IssueFilter } from "@linear/sdk/dist/_generated_documents";
 
 export type IssueNumber = {
   teamKey: string;
@@ -19,8 +20,10 @@ const getIssues = async (
     filter: {
       or: issueNumbers.map((issueNumber) => {
         return {
-          team: { key: { eq: issueNumber.teamKey } },
-          number: { eq: issueNumber.issueNumber },
+          and: [
+            { team: { key: { eq: issueNumber.teamKey } } },
+            { number: { eq: issueNumber.issueNumber } },
+          ],
         };
       }),
     },

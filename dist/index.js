@@ -9638,8 +9638,10 @@ const getIssues = async (linearClient, ...issueNumbers) => {
         filter: {
             or: issueNumbers.map((issueNumber) => {
                 return {
-                    team: { key: { eq: issueNumber.teamKey } },
-                    number: { eq: issueNumber.issueNumber },
+                    and: [
+                        { team: { key: { eq: issueNumber.teamKey } } },
+                        { number: { eq: issueNumber.issueNumber } },
+                    ],
                 };
             }),
         },
@@ -9731,9 +9733,7 @@ const main = async () => {
         const regexStr = `(?<!A-Za-z)(${teamKeys.join("|")})-(\\d+)`;
         const regExp = new RegExp(regexStr, "gim");
         const haystack = Object.values(prParts)
-            .map(({ value, flag }) => {
-            return flag ? value : undefined;
-        })
+            .map(({ value, flag }) => (flag ? value : undefined))
             .filter(Boolean)
             .join(" ");
         (0, core_1.debug)(`Checking PR for identifier "${regexStr}" in "${haystack}"`);

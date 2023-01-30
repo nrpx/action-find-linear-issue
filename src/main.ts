@@ -65,9 +65,7 @@ const main = async () => {
     const regexStr = `(?<!A-Za-z)(${teamKeys.join("|")})-(\\d+)`;
     const regExp = new RegExp(regexStr, "gim");
     const haystack = Object.values(prParts)
-      .map(({ value, flag }) => {
-        return flag ? value : undefined;
-      })
+      .map(({ value, flag }) => (flag ? value : undefined))
       .filter(Boolean)
       .join(" ");
     debug(`Checking PR for identifier "${regexStr}" in "${haystack}"`);
