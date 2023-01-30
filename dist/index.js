@@ -9686,7 +9686,7 @@ const main = async () => {
     };
     const matchToIssueNumber = (issueStr) => {
         const [teamKey, issueNumber] = issueStr.split("-");
-        return { teamKey, issueNumber: Number(issueNumber) };
+        return { teamKey: teamKey.toUpperCase(), issueNumber: Number(issueNumber) };
     };
     try {
         const inputs = {

@@ -11,7 +11,7 @@ const main = async () => {
 
   const matchToIssueNumber = (issueStr: string): IssueNumber => {
     const [teamKey, issueNumber] = issueStr.split("-");
-    return { teamKey, issueNumber: Number(issueNumber) };
+    return { teamKey: teamKey.toUpperCase(), issueNumber: Number(issueNumber) };
   };
 
   try {
