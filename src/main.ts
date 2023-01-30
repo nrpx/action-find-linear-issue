@@ -1,8 +1,37 @@
 import { debug, setFailed, getInput, setOutput } from "@actions/core";
-import { LinearClient, LinearClientOptions } from "@linear/sdk";
+import {
+  Issue,
+  IssueLabel,
+  LinearClient,
+  LinearClientOptions,
+  Team,
+} from "@linear/sdk";
 import { context } from "@actions/github";
 import getTeams from "./getTeams";
 import getIssues, { IssueNumber } from "./getIssues";
+
+type InputMap = {
+  apiKey: string;
+  outputMultiple: boolean;
+  includeTitle: boolean;
+  includeDescription: boolean;
+  includeBranchName: boolean;
+  withTeam: boolean;
+  withLabels: boolean;
+};
+
+type ApiKeyInput = Pick<LinearClientOptions, "apiKey">;
+
+type PartsWithOpts<Type> = {
+  [Property in keyof Type]: { value: string | undefined; flag: boolean };
+};
+type PartsType = PartsWithOpts<{ branch: void; title: void; body: void }>;
+
+type LimitedIssue = Omit<Issue, "team" | "labels">;
+type FoundIssueType = LimitedIssue & {
+  team?: Team | null;
+  labels?: IssueLabel[] | null;
+};
 
 const main = async () => {
   const boolCheck = (arg: string, defValue: boolean = false): boolean => {
@@ -15,7 +44,7 @@ const main = async () => {
   };
 
   try {
-    const inputs = {
+    const inputs: InputMap = {
       apiKey: getInput("linear-api-key", { required: true }),
       outputMultiple: boolCheck(getInput("output-multiple")),
       includeTitle: boolCheck(getInput("include-title")),
@@ -25,10 +54,6 @@ const main = async () => {
       withLabels: boolCheck(getInput("with-labels"), true),
     };
 
-    type PartsWithOpts<Type> = {
-      [Property in keyof Type]: { value: string | undefined; flag: boolean };
-    };
-    type PartsType = PartsWithOpts<{ branch: void; title: void; body: void }>;
     const prParts: PartsType = {
       branch: {
         value: context.payload.pull_request?.head.ref,
@@ -53,46 +78,63 @@ const main = async () => {
     }
 
     const linearClient = new LinearClient({
-      ...(inputs as LinearClientOptions),
+      ...(inputs as ApiKeyInput),
     });
-    const teams = await getTeams(linearClient);
+
+    const teams: Team[] = await getTeams(linearClient);
     if (!teams.length) {
       setFailed(`No teams found in Linear workspace`);
       return;
     }
 
-    const teamKeys = teams.map((team) => team.key);
-    const regexStr = `(?<!A-Za-z)(${teamKeys.join("|")})-(\\d+)`;
-    const regExp = new RegExp(regexStr, "gim");
-    const haystack = Object.values(prParts)
+    const teamKeys: string[] = teams.map((team) => team.key);
+    const regexStr: string = `(?<!A-Za-z)(${teamKeys.join("|")})-(\\d+)`;
+    const regExp: RegExp = new RegExp(regexStr, "gim");
+    const haystack: string = Object.values(prParts)
       .map(({ value, flag }) => (flag ? value : undefined))
       .filter(Boolean)
       .join(" ");
     debug(`Checking PR for identifier "${regexStr}" in "${haystack}"`);
 
-    const matches = haystack.match(regExp);
+    const matches: string[] = haystack.match(regExp) as string[];
     if (matches?.length) {
       debug(`Found numbers: ${matches.join(", ")}`);
 
-      const issueNumbers = inputs.outputMultiple
+      const issueNumbers: IssueNumber[] = inputs.outputMultiple
         ? matches.map(matchToIssueNumber)
         : [matchToIssueNumber(matches[0])];
-      const issues = await getIssues(linearClient, ...issueNumbers);
+      debug(`Formatted issues: ${JSON.stringify(issueNumbers)}`);
+
+      const issues: Issue[] = await getIssues(linearClient, ...issueNumbers);
+      debug(`Linear API issues result: ${JSON.stringify(issues)}`);
 
       if (issues.length) {
-        const foundIssues = issues.map(async (issue) => {
-          return {
-            ...issue,
-            team: inputs.withTeam ? await issue.team : null,
-            labels: inputs.withLabels ? (await issue.labels()).nodes : null,
-          };
-        });
+        const extendIssues = (
+          rawIssues: Issue[]
+        ): Promise<FoundIssueType[]> => {
+          const promises = rawIssues.map(
+            async (issue): Promise<FoundIssueType> => {
+              return {
+                ...(issue as LimitedIssue),
+                team: inputs.withTeam ? await issue.team : null,
+                labels: inputs.withLabels ? (await issue.labels()).nodes : null,
+              };
+            }
+          );
+
+          return Promise.all(promises);
+        };
+
+        const foundIssues = await extendIssues(issues);
+
+        debug(`Updated result: ${JSON.stringify(foundIssues)}`);
 
         if (inputs.outputMultiple) {
           setOutput("linear-issues", JSON.stringify(foundIssues));
         } else {
           setOutput("linear-issue", JSON.stringify(foundIssues[0]));
         }
+        return;
       }
     }
 

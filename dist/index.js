@@ -9743,21 +9743,29 @@ const main = async () => {
             const issueNumbers = inputs.outputMultiple
                 ? matches.map(matchToIssueNumber)
                 : [matchToIssueNumber(matches[0])];
+            (0, core_1.debug)(`Formatted issues: ${JSON.stringify(issueNumbers)}`);
             const issues = await (0, getIssues_1.default)(linearClient, ...issueNumbers);
+            (0, core_1.debug)(`Linear API issues result: ${JSON.stringify(issues)}`);
             if (issues.length) {
-                const foundIssues = issues.map(async (issue) => {
-                    return {
-                        ...issue,
-                        team: inputs.withTeam ? await issue.team : null,
-                        labels: inputs.withLabels ? (await issue.labels()).nodes : null,
-                    };
-                });
+                const extendIssues = (rawIssues) => {
+                    const promises = rawIssues.map(async (issue) => {
+                        return {
+                            ...issue,
+                            team: inputs.withTeam ? await issue.team : null,
+                            labels: inputs.withLabels ? (await issue.labels()).nodes : null,
+                        };
+                    });
+                    return Promise.all(promises);
+                };
+                const foundIssues = await extendIssues(issues);
+                (0, core_1.debug)(`Updated result: ${JSON.stringify(foundIssues)}`);
                 if (inputs.outputMultiple) {
                     (0, core_1.setOutput)("linear-issues", JSON.stringify(foundIssues));
                 }
                 else {
                     (0, core_1.setOutput)("linear-issue", JSON.stringify(foundIssues[0]));
                 }
+                return;
             }
         }
         (0, core_1.setFailed)(`Failed to find Linear issue identifier in PR branch, title, or body.`);

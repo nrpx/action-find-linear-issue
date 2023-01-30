@@ -1,5 +1,4 @@
 import { Issue, LinearClient, Team } from "@linear/sdk";
-import { IssueFilter } from "@linear/sdk/dist/_generated_documents";
 
 export type IssueNumber = {
   teamKey: string;

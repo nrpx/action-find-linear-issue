@@ -1,0 +1,10 @@
+{
+  "pull_request": {
+    "head": {
+      "ref": "fos-2174-linear-api-with-github-actions"
+    },
+    "base": {
+      "ref": "main"
+    }
+  }
+}
