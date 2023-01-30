@@ -9724,11 +9724,12 @@ const main = async () => {
         const regexStr = `(?<!A-Za-z)(${teamKeys.join("|")})-(\\d+)`;
         const regExp = new RegExp(regexStr, "gim");
         const haystack = [
-            includeBranchNameInput ? prBranch : undefined,
-            includeTitleInput ? prTitle : undefined,
-            includeDescriptionInput ? prBody : undefined,
+            [prBranch, includeBranchNameInput],
+            [prTitle, includeTitleInput],
+            [prBody, includeDescriptionInput],
         ]
-            .filter((str) => str !== undefined)
+            .map((partFlag) => (partFlag[1] ? partFlag[0] : undefined))
+            .filter((partStr) => partStr !== undefined)
             .join(" ");
         (0, core_1.debug)(`Checking PR for identifier "${regexStr}" in "${haystack}"`);
         const matches = haystack.match(regExp);
