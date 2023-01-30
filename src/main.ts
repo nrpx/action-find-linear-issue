@@ -1,84 +1,140 @@
 import { debug, setFailed, getInput, setOutput } from "@actions/core";
-import { LinearClient } from "@linear/sdk";
+import {
+  Issue,
+  IssueLabel,
+  LinearClient,
+  LinearClientOptions,
+  Team,
+} from "@linear/sdk";
 import { context } from "@actions/github";
 import getTeams from "./getTeams";
-import getIssueByTeamAndNumber from "./getIssueByTeamAndNumber";
+import getIssues, { IssueNumber } from "./getIssues";
+
+type InputMap = {
+  apiKey: string;
+  outputMultiple: boolean;
+  includeTitle: boolean;
+  includeDescription: boolean;
+  includeBranchName: boolean;
+  withTeam: boolean;
+  withLabels: boolean;
+};
+
+type ApiKeyInput = Pick<LinearClientOptions, "apiKey">;
+
+type PartsWithOpts<Type> = {
+  [Property in keyof Type]: { value: string | undefined; flag: boolean };
+};
+type PartsType = PartsWithOpts<{ branch: void; title: void; body: void }>;
+
+type LimitedIssue = Omit<Issue, "team" | "labels">;
+type FoundIssueType = LimitedIssue & {
+  team?: Team | null;
+  labels?: IssueLabel[] | null;
+};
 
 const main = async () => {
+  const boolCheck = (arg: string, defValue: boolean = false): boolean => {
+    return ["true", "false"].includes(arg) ? arg === "true" : defValue;
+  };
+
+  const matchToIssueNumber = (issueStr: string): IssueNumber => {
+    const [teamKey, issueNumber] = issueStr.split("-");
+    return { teamKey: teamKey.toUpperCase(), issueNumber: Number(issueNumber) };
+  };
+
   try {
-    const prTitle: string = context?.payload?.pull_request?.title;
-    debug(`PR Title: ${prTitle}`);
-    if (!prTitle) {
-      setFailed(`Could not load PR title`);
-      return;
+    const inputs: InputMap = {
+      apiKey: getInput("linear-api-key", { required: true }),
+      outputMultiple: boolCheck(getInput("output-multiple")),
+      includeTitle: boolCheck(getInput("include-title")),
+      includeDescription: boolCheck(getInput("include-description")),
+      includeBranchName: boolCheck(getInput("include-branch-name"), true),
+      withTeam: boolCheck(getInput("with-team"), true),
+      withLabels: boolCheck(getInput("with-labels"), true),
+    };
+
+    const prParts: PartsType = {
+      branch: {
+        value: context.payload.pull_request?.head.ref,
+        flag: inputs.includeBranchName,
+      },
+      title: {
+        value: context.payload.pull_request?.title,
+        flag: inputs.includeTitle,
+      },
+      body: {
+        value: context.payload.pull_request?.body,
+        flag: inputs.includeDescription,
+      },
+    };
+
+    for (const [partName, partOpts] of Object.entries(prParts)) {
+      debug(`PR ${partName}: ${partOpts.value}`);
+      if (partOpts.value === undefined && partOpts.flag) {
+        setFailed(`Could not load PR ${partName}`);
+        return;
+      }
     }
 
-    const prBranch: string = context.payload.pull_request?.head.ref;
-    debug(`PR Branch: ${prBranch}`);
-    if (!prBranch) {
-      setFailed(`Could not load PR branch`);
-      return;
-    }
+    const linearClient = new LinearClient({
+      ...(inputs as ApiKeyInput),
+    });
 
-    const prBody = context?.payload?.pull_request?.body;
-    debug(`PR Body: ${prBody}`);
-    if (prBranch === undefined) {
-      setFailed(`Could not load PR body`);
-      return;
-    }
-
-    const apiKey = getInput("linear-api-key", { required: true });
-    const linearClient = new LinearClient({ apiKey });
-    const teams = await getTeams(linearClient);
-    if (teams.length === 0) {
+    const teams: Team[] = await getTeams(linearClient);
+    if (!teams.length) {
       setFailed(`No teams found in Linear workspace`);
       return;
     }
 
-    for (const team of teams) {
-      const regexString = `${team.key}-(\\d+)`;
-      const regex = new RegExp(regexString, "gim");
-      const haystack = prBranch + " " + prTitle + " " + prBody;
-      debug(`Checking PR for indentifier "${regexString}" in "${haystack}"`);
-      const outputMultiple = getInput("output-multiple");
-      const matches = haystack.match(regex);
+    const teamKeys: string[] = teams.map((team) => team.key);
+    const regexStr: string = `(?<!A-Za-z)(${teamKeys.join("|")})-(\\d+)`;
+    const regExp: RegExp = new RegExp(regexStr, "gim");
+    const haystack: string = Object.values(prParts)
+      .map(({ value, flag }) => (flag ? value : undefined))
+      .filter(Boolean)
+      .join(" ");
+    debug(`Checking PR for identifier "${regexStr}" in "${haystack}"`);
 
-      if (!outputMultiple && matches?.length) {
-        const issueNumber = matches[0].split("-")[1];
-        debug(`Found issue number: ${issueNumber}`);
-        const issue = await getIssueByTeamAndNumber(
-          linearClient,
-          team,
-          Number(issueNumber)
-        );
-        if (issue) {
-          setOutput("linear-team-id", team.id);
-          setOutput("linear-team-key", team.key);
-          setOutput("linear-issue-id", issue.id);
-          setOutput("linear-issue-number", issue.number);
-          setOutput("linear-issue-identifier", issue.identifier);
-          setOutput("linear-issue-url", issue.url);
-          setOutput("linear-issue-title", issue.title);
-          setOutput("linear-issue-description", issue.description);
-          return;
+    const matches: string[] = haystack.match(regExp) as string[];
+    if (matches?.length) {
+      debug(`Found numbers: ${matches.join(", ")}`);
+
+      const issueNumbers: IssueNumber[] = inputs.outputMultiple
+        ? matches.map(matchToIssueNumber)
+        : [matchToIssueNumber(matches[0])];
+      debug(`Formatted issues: ${JSON.stringify(issueNumbers)}`);
+
+      const issues: Issue[] = await getIssues(linearClient, ...issueNumbers);
+      debug(`Linear API issues result: ${JSON.stringify(issues)}`);
+
+      if (issues.length) {
+        const extendIssues = (
+          rawIssues: Issue[]
+        ): Promise<FoundIssueType[]> => {
+          const promises = rawIssues.map(
+            async (issue): Promise<FoundIssueType> => {
+              return {
+                ...(issue as LimitedIssue),
+                team: inputs.withTeam ? await issue.team : null,
+                labels: inputs.withLabels ? (await issue.labels()).nodes : null,
+              };
+            }
+          );
+
+          return Promise.all(promises);
+        };
+
+        const foundIssues = await extendIssues(issues);
+
+        debug(`Updated result: ${JSON.stringify(foundIssues)}`);
+
+        if (inputs.outputMultiple) {
+          setOutput("linear-issues", JSON.stringify(foundIssues));
+        } else {
+          setOutput("linear-issue", JSON.stringify(foundIssues[0]));
         }
-      }
-
-      if (outputMultiple && matches?.length) {
-        const issueNumbers = matches.map((match) => match.split("-")[1]);
-        debug(`Found issue numbers: ${issueNumbers.toString()}`);
-        const issues = await Promise.all(
-          issueNumbers.map((issueNumber) =>
-            getIssueByTeamAndNumber(linearClient, team, Number(issueNumber))
-          )
-        );
-
-        if (issues.length) {
-          setOutput("linear-team-id", team.id);
-          setOutput("linear-team-key", team.key);
-          setOutput("linear-issues", JSON.stringify(issues));
-          return;
-        }
+        return;
       }
     }
 
