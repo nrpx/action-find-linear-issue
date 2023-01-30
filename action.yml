@@ -1,4 +1,4 @@
-name: "Find Linear Issue"
+name: "Find Linear Issue(s) across your PRs"
 description: "Finds a Linear Issue from your pull request's branch, title, or description"
 inputs:
   linear-api-key:
