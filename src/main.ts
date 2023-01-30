@@ -69,7 +69,7 @@ const main = async () => {
     const regExp = new RegExp(regexStr, "gim");
     const haystack = Object.values(prParts)
       .map(({ value, flag }) => (flag ? value : undefined))
-      .filter((value) => value !== undefined)
+      .filter(Boolean)
       .join(" ");
     debug(`Checking PR for identifier "${regexStr}" in "${haystack}"`);
 
