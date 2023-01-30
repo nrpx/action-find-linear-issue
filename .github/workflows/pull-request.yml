@@ -29,10 +29,12 @@ jobs:
 
       - name: Create comment in PR with Linear Issue link
         uses: peter-evans/create-or-update-comment@v2
+        env:
+          issue_identifier: ${{ fromJson(steps.findIssue.outputs.linear-issue).identifier }}
+          issue_title: ${{ fromJson(steps.findIssue.outputs.linear-issue).title }}
+          issue_url: ${{ fromJson(steps.findIssue.outputs.linear-issue).url }}
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           issue-number: ${{ github.event.pull_request.number }}
           body: |
-            ```yaml
-            ${{ toJson(steps.findIssue.outputs.linear-issue) }}
-            ```
+            [${{ env.issue_identifier }}: ${{ env.issue_title }}](${{ env.issue_url }})
