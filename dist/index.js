@@ -9689,32 +9689,39 @@ const main = async () => {
         return { teamKey, issueNumber: Number(issueNumber) };
     };
     try {
-        const linearApiKeyInput = (0, core_1.getInput)("linear-api-key", { required: true });
-        const outputMultipleInput = boolCheck((0, core_1.getInput)("output-multiple"));
-        const includeTitleInput = boolCheck((0, core_1.getInput)("include-title"));
-        const includeDescriptionInput = boolCheck((0, core_1.getInput)("include-description"));
-        const includeBranchNameInput = boolCheck((0, core_1.getInput)("include-branch-name"), true);
-        const withTeamInput = boolCheck((0, core_1.getInput)("with-team"), true);
-        const withLabelsInput = boolCheck((0, core_1.getInput)("with-labels"), true);
-        const prBranch = github_1.context.payload.pull_request?.head.ref;
-        (0, core_1.debug)(`PR Branch: ${prBranch}`);
-        if (!prBranch && includeBranchNameInput) {
-            (0, core_1.setFailed)(`Could not load PR branch`);
-            return;
+        const inputs = {
+            apiKey: (0, core_1.getInput)("linear-api-key", { required: true }),
+            outputMultiple: boolCheck((0, core_1.getInput)("output-multiple")),
+            includeTitle: boolCheck((0, core_1.getInput)("include-title")),
+            includeDescription: boolCheck((0, core_1.getInput)("include-description")),
+            includeBranchName: boolCheck((0, core_1.getInput)("include-branch-name"), true),
+            withTeam: boolCheck((0, core_1.getInput)("with-team"), true),
+            withLabels: boolCheck((0, core_1.getInput)("with-labels"), true),
+        };
+        const prParts = {
+            branch: {
+                value: github_1.context.payload.pull_request?.head.ref,
+                flag: inputs.includeBranchName,
+            },
+            title: {
+                value: github_1.context.payload.pull_request?.title,
+                flag: inputs.includeTitle,
+            },
+            body: {
+                value: github_1.context.payload.pull_request?.body,
+                flag: inputs.includeDescription,
+            },
+        };
+        for (const [partName, partOpts] of Object.entries(prParts)) {
+            (0, core_1.debug)(`PR ${partName}: ${partOpts.value}`);
+            if (partOpts.value === undefined && partOpts.flag) {
+                (0, core_1.setFailed)(`Could not load PR ${partName}`);
+                return;
+            }
         }
-        const prTitle = github_1.context.payload.pull_request?.title;
-        (0, core_1.debug)(`PR Title: ${prTitle}`);
-        if (!prTitle && includeTitleInput) {
-            (0, core_1.setFailed)(`Could not load PR title`);
-            return;
-        }
-        const prBody = github_1.context.payload.pull_request?.body;
-        (0, core_1.debug)(`PR Body: ${prBody}`);
-        if (prBody === undefined && includeDescriptionInput) {
-            (0, core_1.setFailed)(`Could not load PR body`);
-            return;
-        }
-        const linearClient = new sdk_1.LinearClient({ apiKey: linearApiKeyInput });
+        const linearClient = new sdk_1.LinearClient({
+            ...inputs,
+        });
         const teams = await (0, getTeams_1.default)(linearClient);
         if (!teams.length) {
             (0, core_1.setFailed)(`No teams found in Linear workspace`);
@@ -9723,19 +9730,15 @@ const main = async () => {
         const teamKeys = teams.map((team) => team.key);
         const regexStr = `(?<!A-Za-z)(${teamKeys.join("|")})-(\\d+)`;
         const regExp = new RegExp(regexStr, "gim");
-        const haystack = [
-            [prBranch, includeBranchNameInput],
-            [prTitle, includeTitleInput],
-            [prBody, includeDescriptionInput],
-        ]
-            .map((partFlag) => (partFlag[1] ? partFlag[0] : undefined))
-            .filter((partStr) => partStr !== undefined)
+        const haystack = Object.values(prParts)
+            .map(({ value, flag }) => (flag ? value : undefined))
+            .filter((value) => value !== undefined)
             .join(" ");
         (0, core_1.debug)(`Checking PR for identifier "${regexStr}" in "${haystack}"`);
         const matches = haystack.match(regExp);
         if (matches?.length) {
             (0, core_1.debug)(`Found numbers: ${matches.join(", ")}`);
-            const issueNumbers = outputMultipleInput
+            const issueNumbers = inputs.outputMultiple
                 ? matches.map(matchToIssueNumber)
                 : [matchToIssueNumber(matches[0])];
             const issues = await (0, getIssues_1.default)(linearClient, ...issueNumbers);
@@ -9743,11 +9746,11 @@ const main = async () => {
                 const foundIssues = issues.map(async (issue) => {
                     return {
                         ...issue,
-                        team: withTeamInput ? await issue.team : null,
-                        labels: withLabelsInput ? (await issue.labels()).nodes : null,
+                        team: inputs.withTeam ? await issue.team : null,
+                        labels: inputs.withLabels ? (await issue.labels()).nodes : null,
                     };
                 });
-                if (outputMultipleInput) {
+                if (inputs.outputMultiple) {
                     (0, core_1.setOutput)("linear-issues", JSON.stringify(foundIssues));
                 }
                 else {
