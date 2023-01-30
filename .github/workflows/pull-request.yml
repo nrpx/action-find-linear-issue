@@ -34,5 +34,5 @@ jobs:
           issue-number: ${{ github.event.pull_request.number }}
           body: |
             ```yaml
-            ${{ fromJson(steps.findIssue.outputs.linear-issue) }}
+            ${{ toJson(steps.findIssue.outputs.linear-issue) }}
             ```

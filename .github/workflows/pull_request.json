@@ -1,5 +1,6 @@
 {
   "pull_request": {
+    "number": 1,
     "head": {
       "ref": "fos-2174-linear-api-with-github-actions"
     },

@@ -11,23 +11,23 @@ This is helpful when you're:
 | Input            | Description                                                                        | Required |
 | ---------------- | ---------------------------------------------------------------------------------- | -------- |
 | `linear-api-key` | Linear API key generated from https://linear.app/settings/api . (e.g. `lin_api_*)` | ✅       |
+| `output-multiple` | Find multiple issues and output a JSON array of results (default `false`) | ❌      |
+| `include-title` | Taking the PR title into account to find issues (default `false`) | ❌       |
+| `include-description` | Taking the PR description into account to find issues (default `false`) | ❌       |
+| `include-branch-name` | Taking the PR branch name into account to find issues (default `true`) | ❌       |
+| `with-team` | Include `team` node into each resulted `issue` (default `true`) | ❌       |
+| `with-labels` | Include `labels` nodes into each resulted `issue` (default `true`) | ❌       |
 
 ## Outputs
 
-| Output                     | Description                                                    |
-| -------------------------- | -------------------------------------------------------------- |
-| `linear-issue-id`          | The Linear issue's unique identifier. (UUID)                   |
-| `linear-issue-identifier`  | The Linear issue's human readable identifier. (e.g. `ENG-123`) |
-| `linear-issue-number`      | The Linear issue's number. (e.g. the `123` of `ENG-123`)       |
-| `linear-issue-title`       | The Linear issue's title.                                      |
-| `linear-issue-description` | The Linear issue's description.                                |
-| `linear-issue-url`         | The Linear issue's URL. (e.g. `https://...`)                   |
-| `linear-team-id`           | The Linear teams unique identifier. (UUID)                     |
-| `linear-team-key`          | The Linear teams key/prefix (e.g. `ENG`)                       |
+| Output          | Description                                                      |
+| --------------- | ---------------------------------------------------------------- |
+| `linear-issue`  | The Linear issue in JSON format                                  |
+| `linear-issues` | The Linear issues as JSON array (when `output-multiple` is used) |
 
 ## Example usage
 
-### Create Linear Issue on Pull Request
+### Create a comment with Linear Issue on Pull Request
 
 ```yaml
 name: Find Linear Issue in Pull Request
@@ -40,7 +40,7 @@ on:
     types: [opened, reopened]
 
 jobs:
-  create-linear-issue-on-pull-request:
+  comment-with-linear-issue-on-pull-request:
     runs-on: ubuntu-latest
     steps:
       - name: Find the Linear Issue
@@ -55,5 +55,5 @@ jobs:
           token: ${{secrets.GITHUB_TOKEN}}
           issue-number: ${{ github.event.pull_request.number }}
           body: |
-            [${{ steps.findIssue.outputs.linear-issue-identifier }}: ${{ steps.findIssue.outputs.linear-issue-title }}](${{ steps.findIssue.outputs.linear-issue-url }})
+            [${{ steps.findIssue.outputs.linear-issue.identifier }}: ${{ steps.findIssue.outputs.linear-issue.title }}](${{ steps.findIssue.outputs.linear-issue.url }})
 ```
