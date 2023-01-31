@@ -19,6 +19,7 @@ This is helpful when you're:
 | `include-branch-name` | Taking the PR branch name into account to find issues (default `true`)             | 🚫       |
 | `with-team`           | Include `team` node into each resulted `issue` (default `true`)                    | 🚫       |
 | `with-labels`         | Include `labels` nodes into each resulted `issue` (default `true`)                 | 🚫       |
+| `with-project`        | Include `project` node into each resulted `issue` (default `true`)                 | 🚫       |
 
 ## Outputs
 
@@ -47,7 +48,7 @@ jobs:
     steps:
       - name: Find the Linear Issue
         id: findIssue
-        uses: nrpx/action-find-linear-issue@v1
+        uses: nrpx/action-find-linear-issue@v1.3
         with:
           linear-api-key: ${{secrets.LINEAR_API_KEY}}
 
