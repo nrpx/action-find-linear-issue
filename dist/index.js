@@ -9699,6 +9699,7 @@ const main = async () => {
             includeBranchName: boolCheck((0, core_1.getInput)("include-branch-name"), true),
             withTeam: boolCheck((0, core_1.getInput)("with-team"), true),
             withLabels: boolCheck((0, core_1.getInput)("with-labels"), true),
+            withProject: boolCheck((0, core_1.getInput)("with-project"), true),
         };
         const prParts = {
             branch: {
@@ -9753,6 +9754,7 @@ const main = async () => {
                             ...issue,
                             team: inputs.withTeam ? await issue.team : null,
                             labels: inputs.withLabels ? (await issue.labels()).nodes : null,
+                            project: inputs.withProject ? await issue.project : null,
                         };
                     });
                     return Promise.all(promises);

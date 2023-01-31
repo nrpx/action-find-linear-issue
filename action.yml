@@ -22,6 +22,9 @@ inputs:
   with-labels:
     description: "Include `labels` nodes into each resulted `issue` (default `true`)"
     required: false
+  with-project:
+    description: "Include `project` node into each resulted `issue` (default `true`)"
+    required: false
 
 outputs:
   linear-issues:
